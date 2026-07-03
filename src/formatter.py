@@ -39,7 +39,7 @@ def format_message(papers: list[Paper], summaries: list[dict[str, str]], config:
 
     message = header + separator + separator.join(sections)
 
-    if len(message) > config.whatsapp_max_message_length:
-        message = message[: config.whatsapp_max_message_length - 20] + "\n\n... (truncated)"
+    if len(message) > config.max_message_length:
+        message = message[: config.max_message_length - 20] + "\n\n... (truncated)"
 
     return message

@@ -8,7 +8,7 @@ from src.fetch_papers import fetch_papers
 from src.formatter import format_message
 from src.logger import log
 from src.summarize import summarize_papers
-from src.whatsapp import send_whatsapp_message
+from src.email_sender import send_email
 
 
 def main() -> int:
@@ -36,9 +36,9 @@ def main() -> int:
         message = format_message(papers, summaries, config)
         log.info(f"Formatted message ({len(message)} chars)")
 
-        success = send_whatsapp_message(message, config)
+        success = send_email(message, config)
         if not success:
-            log.error("Failed to send WhatsApp message")
+            log.error("Failed to send email")
             return 1
 
         mark_as_sent(papers)
