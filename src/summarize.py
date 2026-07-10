@@ -1,12 +1,10 @@
 import time
-
-import requests
+import groq
+from groq import Groq
 
 from .config import Config
 from .fetch_papers import Paper
 from .logger import log
-
-GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
 SYSTEM_PROMPT = """You are a research paper summarizer. Given a paper's title and abstract, provide:
 1. A one-line summary
@@ -32,69 +30,59 @@ APPLICATIONS: <text>"""
 
 def summarize_papers(papers: list[Paper], config: Config) -> list[dict[str, str]]:
     summaries: list[dict[str, str]] = []
+    
+    # Initialize the Groq client once
+    client = Groq(api_key=config.groq_api_key)
 
     for i, paper in enumerate(papers, 1):
         log.info(f"Summarizing paper {i}/{len(papers)}: {paper.title[:60]}...")
-        summary = _summarize_single(paper, config)
+        summary = _summarize_single(client, paper, config)
         summaries.append(summary)
 
     return summaries
 
 
-def _summarize_single(paper: Paper, config: Config) -> dict[str, str]:
+def _summarize_single(client: Groq, paper: Paper, config: Config) -> dict[str, str]:
     user_prompt = f"Title: {paper.title}\n\nAbstract: {paper.abstract}"
-    url = GEMINI_API_URL.format(model=config.gemini_model)
 
     for attempt in range(config.max_retries):
         try:
-            response = requests.post(
-                url,
-                params={"key": config.gemini_api_key},
-                headers={"Content-Type": "application/json"},
-                json={
-                    "system_instruction": {"parts": [{"text": SYSTEM_PROMPT}]},
-                    "contents": [{"parts": [{"text": user_prompt}]}],
-                    "generationConfig": {
-                        "temperature": 0.3,
-                        "maxOutputTokens": 500,
-                    },
-                },
+            response = client.chat.completions.create(
+                model=config.groq_model,
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=0.3,
+                max_tokens=500,
                 timeout=config.request_timeout,
             )
-            response.raise_for_status()
-            data = response.json()
-            text = _extract_response_text(data)
+            
+            text = response.choices[0].message.content
+            if not text:
+                return _fallback_summary(paper)
+                
             return _parse_summary(text)
 
-        except requests.exceptions.HTTPError as e:
-            if e.response is not None and e.response.status_code == 429:
-                wait = config.retry_delay * (attempt + 1)
-                log.warning(f"Rate limited, retrying in {wait}s...")
-                time.sleep(wait)
-                continue
-            if attempt == config.max_retries - 1:
-                log.error(f"Failed to summarize: {e}")
-                return _fallback_summary(paper)
-            time.sleep(config.retry_delay)
-
-        except (requests.exceptions.RequestException, KeyError, ValueError) as e:
+        except groq.RateLimitError as e:
+            wait = config.retry_delay * (attempt + 1)
+            log.warning(f"Rate limited by Groq, retrying in {wait}s...")
+            time.sleep(wait)
+            continue
+            
+        except groq.GroqError as e:
             if attempt == config.max_retries - 1:
                 log.error(f"Failed to summarize after {config.max_retries} attempts: {e}")
                 return _fallback_summary(paper)
             time.sleep(config.retry_delay)
+            
+        except Exception as e:
+            if attempt == config.max_retries - 1:
+                log.error(f"Unexpected error summarizing paper: {e}")
+                return _fallback_summary(paper)
+            time.sleep(config.retry_delay)
 
     return _fallback_summary(paper)
-
-
-def _extract_response_text(data: dict) -> str:
-    candidates = data.get("candidates", [])
-    if not candidates:
-        return ""
-    content = candidates[0].get("content", {})
-    parts = content.get("parts", [])
-    if not parts:
-        return ""
-    return parts[0].get("text", "")
 
 
 def _parse_summary(text: str) -> dict[str, str]:
