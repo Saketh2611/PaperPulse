@@ -29,7 +29,7 @@ jobs:
 
       - name: Run bot
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           WHATSAPP_TOKEN: ${{ secrets.WHATSAPP_TOKEN }}
           PHONE_NUMBER_ID: ${{ secrets.PHONE_NUMBER_ID }}
           RECIPIENT_NUMBER: ${{ secrets.RECIPIENT_NUMBER }}
