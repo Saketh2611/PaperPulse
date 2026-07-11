@@ -30,9 +30,9 @@ jobs:
       - name: Run bot
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          WHATSAPP_TOKEN: ${{ secrets.WHATSAPP_TOKEN }}
-          PHONE_NUMBER_ID: ${{ secrets.PHONE_NUMBER_ID }}
-          RECIPIENT_NUMBER: ${{ secrets.RECIPIENT_NUMBER }}
+          SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
+          SENDER_APP_PASSWORD: ${{ secrets.SENDER_APP_PASSWORD }}
+          RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
         run: python main.py
 
       - name: Commit sent papers tracking
