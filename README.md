@@ -1,4 +1,4 @@
-# AI Research Daily Bot
+# PaperPulse
 
 A simple Python bot that fetches recent AI-related papers from arXiv, summarizes them with Groq, and sends a daily digest email.
 
